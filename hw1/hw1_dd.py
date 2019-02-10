@@ -47,8 +47,11 @@ def make_plots(x,y,k,u,t,title="",fn=None):
     plt.title("Position")
     plt.ylabel("[AU]")
     plt.xlabel("[AU]")
-    plt.scatter(0,0,marker='.',s=50,c='orange')
     plt.plot(x/AU,y/AU)
+    plt.scatter(x[0]/AU,y[0]/AU,marker="x",s=20,c="green",zorder=9,label="Start")
+    plt.scatter(x[-1]/AU, y[-1]/AU, marker="x", s=20, c="red",zorder=9,label="Stop")
+    plt.scatter(0,0,marker='o',s=20,c='orange',zorder=9,label="Sun")
+    plt.legend()
 
 
     plt.subplot(122)
@@ -100,16 +103,30 @@ def accel(x,y):
 
     return ax,ay
 
+
+def time_ff(x,y):
+    """
+    Using kepler (1/2 orbit at 1/2 distance) (technically should be an integral, but this is close enough
+    for a time step basis)
+    :param x,y:
+    :return:
+    """
+
+    return np.pi * np.sqrt(cart_distance(x,y)**3./(G*(M_SUN+M_COMET)))
+
 def time_step(x, y, adaptive=False):
     """
 
+    Note: not going to worry about a softening length (since only 1 pair and no collission)
+    Using 0.1 as scaling factor on the time
     :param x:
     :param y:
     :param adaptive:
     :return:
     """
     if adaptive:
-        pass
+        #todo: make an adaptive time step
+        return min(PERIOD/1000.,0.1 * time_ff(x,y))
     else:
         return PERIOD/1000.
 
@@ -157,10 +174,6 @@ def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, a
 
         return next_x, next_y, next_vx, next_vy
 
-
-
-
-
     n = 0 #index
     time = [0.]
     while time[n] < orbits * PERIOD:
@@ -174,6 +187,9 @@ def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, a
         n+=1
 
     return np.array(x), np.array(y), np.array(vx), np.array(vy), np.array(time)
+    #end explicit_euler
+
+
 
 def main():
 
@@ -184,6 +200,13 @@ def main():
     k = kinetic_energy(vx,vy)
 
     make_plots(x,y,k,u,t,"Explicit Euler")
+
+    x = [APHELION]; y = [0]; vx = [0]; vy = [APHELION_VELOCITY];
+    x, y, vx, vy, t = explicit_euler(x, y, vx, vy,orbits=10.,adaptive_time=True)  # use all default values
+    u = potential_energy(x, y)
+    k = kinetic_energy(vx, vy)
+
+    make_plots(x, y, k, u, t, "Explicit Euler (Dynamic Time)")
 
 
 
