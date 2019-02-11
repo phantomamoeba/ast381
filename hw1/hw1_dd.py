@@ -29,7 +29,7 @@ APHELION = 524823895700000. #cm
 #note: we are sensitive to the initial velocity (coupled with the time step size) as to whether the orbit will be
 # bound or not as the error in energy increases
 PERIEHLION_VELOCITY = 5500000. #cm/s
-APHELION_VELOCITY = 88000.#90000.0 #cm/s
+APHELION_VELOCITY = 89000.#90000.0 #cm/s
 
 
 SEMI_MAJOR_AXIS = 266795001700000. #cm
@@ -59,12 +59,12 @@ def analytic_orbit():
 
 
 def make_plots(x,y,k,u,t,title="",fn=None):
-    plt.figure(figsize=(16,4))
-    plt.subplots_adjust(wspace=0.2)
+    plt.figure(figsize=(10,10))
+    plt.subplots_adjust(wspace=0.4,hspace=0.4)
 
     #numerical orbit plot
     plt.suptitle(title)
-    plt.subplot(131)
+    plt.subplot(221)
     plt.title("Position")
     plt.ylabel("[AU]")
     plt.xlabel("[AU]")
@@ -78,7 +78,7 @@ def make_plots(x,y,k,u,t,title="",fn=None):
     #overplot analytic solution (plot the ellipse with focus at 0,0)
     #as a "zoom in" centered on the orbit
     plt.suptitle(title)
-    plt.subplot(132)
+    plt.subplot(222)
     plt.title("Position (zoom/centered)")
     plt.ylabel("[AU]")
     plt.xlabel("[AU]")
@@ -98,15 +98,25 @@ def make_plots(x,y,k,u,t,title="",fn=None):
 
 
     #total energy plot
-    plt.subplot(133)
-    plt.title("Total Energy")
+    plt.subplot(223)
+    plt.title("Energy")
     plt.ylabel(r"$erg\ \times10^{29}$")
     plt.xlabel("Time [PERIOD]")
     plt.plot(t/PERIOD,(k+u)/1e29,color='k',zorder=9,label="Sum")
-
-    #plt.plot(t / PERIOD, u / 1e29, color='blue',ls=":",label="Pot")
-    #plt.plot(t / PERIOD, k / 1e29, color='red',ls=":",label="Kin")
+    plt.plot(t / PERIOD, u / 1e29, color='blue',ls="solid",lw=2,alpha=0.5,label="Potential (U)")
+    plt.plot(t / PERIOD, k / 1e29, color='red',ls="solid",lw=2,alpha=0.5,label="Kinetic (K)")
     plt.legend()
+
+    # total energy plot
+    plt.subplot(224)
+    plt.title("Total (K+U) Energy")
+    plt.ylabel(r"$erg\ \times10^{29}$")
+    plt.xlabel("Time [PERIOD]")
+    plt.plot(t / PERIOD, (k + u) / 1e29, color='k', zorder=9, label="Sum")
+
+    # plt.plot(t / PERIOD, u / 1e29, color='blue',ls=":",label="Pot")
+    # plt.plot(t / PERIOD, k / 1e29, color='red',ls=":",label="Kin")
+    #plt.legend()
 
     if fn is not None:
         plt.savefig(fn)
