@@ -41,33 +41,28 @@ M_COMET = 2.2e17 #g
 #don't care about inclination, etc for this exercise
 AU = 1.496e13
 
-
+NUM_ORBITS = 10
 
 
 def analytic_orbit():
-
-    #todo: fix the coordinates .... 0,0 is the SUN
-    #but this is 0,0 at center of ellipse
-
-    #so, shift the x-range to 1000x -SEMI-MAJOR to +SEMI_MAJOR
-    #then calcuate the curve
-    #then add such that most -x --> -PERIHELION
+    """
+    Ellipse of comet orbit
+    :return: x coords and the positive y-coords (quadrants 1 & 2), this is a symmetric closed orbit
+    """
 
     x = np.linspace(-SEMI_MAJOR_AXIS,SEMI_MAJOR_AXIS,1000)
-
     a = SEMI_MAJOR_AXIS
     b = a * np.sqrt(1-ECCENTRICITY**2)
-
     py = b/a * np.sqrt((a**2) - (x**2))
-
-    x = x + (SEMI_MAJOR_AXIS - PERIEHLION)
-
-    #my = -1 * py
+    x = x + (SEMI_MAJOR_AXIS - PERIEHLION) #shift to deal with SUN at (0,0)
     return x,py
 
-def make_plots(x,y,k,u,t,title="",fn=None):
-    plt.figure(figsize=(15,4))
 
+def make_plots(x,y,k,u,t,title="",fn=None):
+    plt.figure(figsize=(16,4))
+    plt.subplots_adjust(wspace=0.2)
+
+    #numerical orbit plot
     plt.suptitle(title)
     plt.subplot(131)
     plt.title("Position")
@@ -79,10 +74,6 @@ def make_plots(x,y,k,u,t,title="",fn=None):
     plt.scatter(0,0,marker='o',s=20,c='orange',zorder=9,label="Sun")
     #plt.ylim(ymin=-22.5, ymax=22.5)
     plt.legend()
-
-
-
-
 
     #overplot analytic solution (plot the ellipse with focus at 0,0)
     #as a "zoom in" centered on the orbit
@@ -103,15 +94,19 @@ def make_plots(x,y,k,u,t,title="",fn=None):
 
     plt.xlim(xmin=-5,xmax=40)
     plt.ylim(ymin=-22.5, ymax=22.5)
-
     plt.legend()
 
 
+    #total energy plot
     plt.subplot(133)
     plt.title("Total Energy")
     plt.ylabel(r"$erg\ \times10^{29}$")
     plt.xlabel("Time [PERIOD]")
-    plt.plot(t/PERIOD,(k+u)/1e29)
+    plt.plot(t/PERIOD,(k+u)/1e29,color='k',zorder=9,label="Sum")
+
+    #plt.plot(t / PERIOD, u / 1e29, color='blue',ls=":",label="Pot")
+    #plt.plot(t / PERIOD, k / 1e29, color='red',ls=":",label="Kin")
+    plt.legend()
 
     if fn is not None:
         plt.savefig(fn)
@@ -135,7 +130,7 @@ def kinetic_energy(vx,vy):
     linear only (ignoring angular)
     :return:
     """
-    return 0.5 * M_COMET * (vx**2 + vy**2)
+    return 0.5 * M_COMET * (vx**2. + vy**2.)
 
 
 def accel(x,y):
@@ -184,7 +179,7 @@ def time_step(x, y, adaptive=False):
         return PERIOD/1000.
 
 
-def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, adaptive_time = False):
+def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
     """
 
     :param x: vector of x positions, length 1 s|t x[0] == initial x position
@@ -243,7 +238,7 @@ def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, a
     #end explicit_euler
 
 
-def rk2(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, adaptive_time = False):
+def rk2(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
     """
 
     :param x: vector of x positions, length 1 s|t x[0] == initial x position
@@ -344,7 +339,7 @@ def rk2(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, adaptive_tim
 
 
 
-def rk2b(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, adaptive_time = False):
+def rk2b(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
     """
     Slightly different organization, but the same results. A bit clearer to me in terms of coding
 
@@ -363,14 +358,6 @@ def rk2b(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, adaptive_ti
     """
 
     def next_velocity(x,y,vx,vy,dt):
-        """
-
-        :param x,y: current (nth) position
-        :param vx,xy: current (nth) velocity
-        :param dt:timestep
-        :return: n+1 velocity in x and y
-        """
-
         ax,ay = accel(x,y)
         next_vx = vx + dt*ax
         next_vy = vy + dt*ay
@@ -379,16 +366,6 @@ def rk2b(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, adaptive_ti
 
 
     def next_position(x,y,vx,vy,dt):
-        """
-
-        :param x:
-        :param y:
-        :param vx:
-        :param vy:
-        :param dt:
-        :return:
-        """
-
         ax,ay = accel(x,y)
 
         next_x = x + dt*vx + 0.5*(dt**2)*ax
@@ -416,27 +393,60 @@ def rk2b(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, adaptive_ti
     #end rk2b
 
 
+def leapfrog(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
+    # keeping with position and velocity instead of momentum, but that should not matter here
+    # positions are on integer steps and velocities are shifted by 1/2 step
+
+
+    def half_step_velocity(x,y,vx,vy,dt): #kick
+        #kick step ... return the velocity of the n+1/2 step
+        #based on 1/2 dt interval * acceleration at the current (passed in) step
+        #note: 1st call will be the n position, 2nd call will be at the n+1 position
+        ax,ay = accel(x, y)
+        next_vx = vx + 0.5* dt * ax
+        next_vy = vy + 0.5 *dt * ay
+
+        return next_vx, next_vy
+
+
+    def next_position(x,y,vx,vy,dt): #drift
+
+        n_half_vx, n_half_vy = half_step_velocity(x,y,vx,vy,dt)  #kick
+
+        next_x = x + dt*n_half_vx #drift
+        next_y = y + dt*n_half_vy
+
+        next_vx, next_vy = half_step_velocity(next_x,next_y,n_half_vx,n_half_vy,dt) #kick
+
+        return next_x, next_y, next_vx, next_vy
+
+    n = 0  # index
+    time = [0.]
+    while time[n] < orbits * PERIOD:
+        dt = time_step(x[n], y[n], adaptive_time)
+        time.append(time[n] + dt)
+
+        next_x, next_y, next_vx, next_vy = next_position(x[n], y[n], vx[n], vy[n], dt)
+
+        x.append(next_x)
+        y.append(next_y)
+        vx.append(next_vx)
+        vy.append(next_vy)
+
+        n += 1
+
+    return np.array(x), np.array(y), np.array(vx), np.array(vy), np.array(time)
+    #end leapfrog
+
 
 def main():
-
-
-
-    ################
-    #test
-    #################
-
-
-
-
-    #exit(0)
-
 
 
     #######################
     #explicit Euler
     ######################
     x = [APHELION];    y = [0];    vx = [0];    vy = [APHELION_VELOCITY];
-    x,y,vx,vy,t = explicit_euler(x, y, vx, vy,orbits=10.) #use all default values
+    x,y,vx,vy,t = explicit_euler(x, y, vx, vy,orbits=NUM_ORBITS) #use all default values
     u = potential_energy(x,y)
     k = kinetic_energy(vx,vy)
 
@@ -444,7 +454,7 @@ def main():
 
     #reset vectors (deal with context)
     x = [APHELION]; y = [0]; vx = [0]; vy = [APHELION_VELOCITY];
-    x, y, vx, vy, t = explicit_euler(x, y, vx, vy,orbits=10.,adaptive_time=True)  # use all default values
+    x, y, vx, vy, t = explicit_euler(x, y, vx, vy,orbits=NUM_ORBITS,adaptive_time=True)  # use all default values
     u = potential_energy(x, y)
     k = kinetic_energy(vx, vy)
 
@@ -455,23 +465,38 @@ def main():
     #RK2
     ###################
     x = [APHELION];    y = [0];    vx = [0];    vy = [APHELION_VELOCITY];
-    x,y,vx,vy,t = rk2b(x, y, vx, vy,orbits=10.) #use all default values
+    x,y,vx,vy,t = rk2b(x, y, vx, vy,orbits=NUM_ORBITS) #use all default values
     u = potential_energy(x,y)
     k = kinetic_energy(vx,vy)
 
     make_plots(x,y,k,u,t,"RK2 (Fixed Time Step)")
 
     # RK2
-    x = [APHELION];
-    y = [0];
-    vx = [0];
-    vy = [APHELION_VELOCITY];
-    x, y, vx, vy, t = rk2b(x, y, vx, vy, orbits=10.,adaptive_time=True)  # use all default values
+    x = [APHELION];    y = [0];    vx = [0];    vy = [APHELION_VELOCITY];
+    x, y, vx, vy, t = rk2b(x, y, vx, vy, orbits=NUM_ORBITS,adaptive_time=True)  # use all default values
     u = potential_energy(x, y)
     k = kinetic_energy(vx, vy)
 
     make_plots(x, y, k, u, t, "RK2 (Dynamic Time Step)")
 
+
+    ###################
+    #Leapfrog
+    ###################
+    x = [APHELION];    y = [0];    vx = [0];    vy = [APHELION_VELOCITY];
+    x,y,vx,vy,t = leapfrog(x, y, vx, vy,orbits=NUM_ORBITS) #use all default values
+    u = potential_energy(x,y)
+    k = kinetic_energy(vx,vy)
+
+    make_plots(x,y,k,u,t,"Leapfrog (Fixed Time Step)")
+
+    # RK2
+    x = [APHELION];    y = [0];    vx = [0];    vy = [APHELION_VELOCITY];
+    x, y, vx, vy, t = leapfrog(x, y, vx, vy, orbits=NUM_ORBITS,adaptive_time=True)  # use all default values
+    u = potential_energy(x, y)
+    k = kinetic_energy(vx, vy)
+
+    make_plots(x, y, k, u, t, "Leapfrog (Dynamic Time Step)")
 
 
 if __name__ == '__main__':
