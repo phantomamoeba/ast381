@@ -30,8 +30,6 @@ APHELION = 524823895700000. #cm
 # bound or not as the error in energy increases
 PERIEHLION_VELOCITY = 5500000. #cm/s
 APHELION_VELOCITY = 89000.#90000.0 #cm/s
-
-
 SEMI_MAJOR_AXIS = 266795001700000. #cm
 PERIOD = 27509.1291 * 86400. #days * seconds
 ECCENTRICITY = 0.96714291
@@ -128,30 +126,17 @@ def cart_distance(x1,y1,x2=0,y2=0):
     return np.sqrt((x1-x2)**2 + (y1-y2)**2)
 
 def potential_energy(x,y):
-    """
-    Gravitational only
-    :return:
-    """
     return -G * M_SUN * M_COMET/cart_distance(x,y)
 
 
 def kinetic_energy(vx,vy):
-    """
-    linear only (ignoring angular)
-    :return:
-    """
     return 0.5 * M_COMET * (vx**2. + vy**2.)
 
 
 def accel(x,y):
     """
     From Gravitational force only, always pointing toward the origin
-
     Just to be explicit, F/m = a ... so this is the same calculation as force, but w/o the comet mass
-
-    :param x:
-    :param y:
-    :return:
     """
 
     theta = np.arctan2(x, y) - np.pi / 2 #-pi/2 so the 0 angle is along the +x axis
@@ -166,15 +151,12 @@ def time_ff(x,y):
     """
     Using kepler (1/2 orbit at 1/2 distance) (technically should be an integral, but this is close enough
     for a time step basis)
-    :param x,y:
-    :return:
     """
-
     return np.pi * np.sqrt(cart_distance(x,y)**3./(G*(M_SUN+M_COMET)))
+
 
 def time_step(x, y, adaptive=False):
     """
-
     Note: not going to worry about a softening length (since only 1 pair and no collission)
     Using 0.1 as scaling factor on the time
     :param x:
@@ -191,7 +173,6 @@ def time_step(x, y, adaptive=False):
 
 def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
     """
-
     :param x: vector of x positions, length 1 s|t x[0] == initial x position
     :param y: vector of y positions, length 1 s|t x[0] == initial y position
     :param vx: vector of x velocities, length 1 s|t x[0] == initial x velocity
@@ -201,14 +182,6 @@ def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_O
     :return: position vector (x,y,t) as 2D matrix
     """
     def next_velocity(x,y,vx,vy,dt):
-        """
-
-        :param x,y: current (nth) position
-        :param vx,xy: current (nth) velocity
-        :param dt:timestep
-        :return: n+1 velocity in x and y
-        """
-
         ax,ay = accel(x,y)
         next_vx = vx + dt*ax
         next_vy = vy + dt*ay
@@ -216,16 +189,6 @@ def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_O
         return next_vx, next_vy
 
     def next_position(x,y,vx,vy,dt):
-        """
-
-        :param x:
-        :param y:
-        :param vx:
-        :param vy:
-        :param dt:
-        :return:
-        """
-
         next_vx, next_vy = next_velocity(x,y,vx,vy,dt)
         next_x = x + dt*next_vx
         next_y = y + dt*next_vy
@@ -248,107 +211,6 @@ def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_O
     #end explicit_euler
 
 
-def rk2(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
-    """
-
-    :param x: vector of x positions, length 1 s|t x[0] == initial x position
-    :param y: vector of y positions, length 1 s|t x[0] == initial y position
-    :param vx: vector of x velocities, length 1 s|t x[0] == initial x velocity
-    :param vy: vector of y velocities, length 1 s|t x[0] == initial y velocity
-    :param vy: vector of time steps, length 1 s|t x[0] == initial time step
-    :param orbits: integer number of orbits to simulate
-    :return: position vector (x,y,t) as 2D matrix
-    """
-
-    def next_velocity(x,y,vx,vy,dt):
-        """
-
-        :param x,y: current (nth) position
-        :param vx,xy: current (nth) velocity
-        :param dt:timestep
-        :return: n+1 velocity in x and y
-        """
-
-        #todo: work on this part for rk2 ... should this just be dx/dt (x[n+1]-x[n])/(time[n+1] - time[n])??
-
-        ax,ay = accel(x,y)
-        next_vx = vx + dt*ax
-        next_vy = vy + dt*ay
-
-        return next_vx, next_vy
-
-    def k1(vx,vy,dt):
-
-        #this is a velocity x time so, a distance ... used as a prediction update of the poistion for use in k2
-        k1x = dt * vx #partial prediction step in x position
-        k1y = dt * vy #partial prediction step in y position
-
-        return k1x,k1y
-
-    def k2(x,y,vx,vy,k1x,k1y,dt):
-        beta = 1.0
-        alpha = 1.0
-        #k2 = dt * velocity at bit in the future (not the full step, but the velocity at
-        # a partial future x and future time, by projecting forward from k1
-
-        predict_vx, predict_vy = next_velocity(x+beta*k1x,y+beta*k1y,vx,vy,alpha*dt)
-        k2x = dt * predict_vx
-        k2y = dt * predict_vy
-
-        return k2x,k2y, predict_vx, predict_vy
-
-
-    def next_position(x,y,k1x,k1y,k2x,k2y):
-        """
-
-        :param x:
-        :param y:
-        :param vx:
-        :param vy:
-        :param dt:
-        :return:
-        """
-
-        a = 0.5
-        b = 0.5
-
-        next_x = x + a*k1x + b*k2x
-        next_y = y + a*k1y + b*k2y
-
-        return next_x, next_y
-
-    n = 0 #index
-    time = [0.]
-    while time[n] < orbits * PERIOD:
-        dt = time_step(x[n],y[n],adaptive_time)
-        time.append(time[n]+dt)
-
-        k1x,k1y = k1(vx[n],vy[n],dt)
-        k2x,k2y,predict_vx, predict_vy  = k2(x[n],y[n],vx[n],vy[n],k1x,k1y,dt)
-
-        next_x, next_y = next_position(x[n],y[n],k1x,k1y,k2x,k2y)
-
-        x.append(next_x)
-        y.append(next_y)
-        vx.append(predict_vx)
-        vy.append(predict_vy)
-
-        #vx.append((x[n+1] -x[n])/(time[n+1] - time[n]))
-        #vy.append((y[n+1] -y[n])/(time[n+1] - time[n]))
-        n+=1
-
-    return np.array(x), np.array(y), np.array(vx), np.array(vy), np.array(time)
-    #end rk2
-
-
-
-
-
-
-
-
-
-
 def rk2b(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
     """
     Slightly different organization, but the same results. A bit clearer to me in terms of coding
@@ -357,14 +219,6 @@ def rk2b(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, ada
     w_n+1 = w_n + dt*w'_n + (dt)**2 * w''_n
     w'_n+1 = w'_n + dt*w''_n
 
-
-    :param x: vector of x positions, length 1 s|t x[0] == initial x position
-    :param y: vector of y positions, length 1 s|t x[0] == initial y position
-    :param vx: vector of x velocities, length 1 s|t x[0] == initial x velocity
-    :param vy: vector of y velocities, length 1 s|t x[0] == initial y velocity
-    :param vy: vector of time steps, length 1 s|t x[0] == initial time step
-    :param orbits: integer number of orbits to simulate
-    :return: position vector (x,y,t) as 2D matrix
     """
 
     def next_velocity(x,y,vx,vy,dt):
@@ -406,7 +260,6 @@ def rk2b(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, ada
 def leapfrog(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
     # keeping with position and velocity instead of momentum, but that should not matter here
     # positions are on integer steps and velocities are shifted by 1/2 step
-
 
     def half_step_velocity(x,y,vx,vy,dt): #kick
         #kick step ... return the velocity of the n+1/2 step
@@ -516,7 +369,87 @@ if __name__ == '__main__':
 
 
 
-
-
+# #junk
+# def rk2(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
+#
+#     def next_velocity(x,y,vx,vy,dt):
+#         """
+#
+#         :param x,y: current (nth) position
+#         :param vx,xy: current (nth) velocity
+#         :param dt:timestep
+#         :return: n+1 velocity in x and y
+#         """
+#
+#         #todo: work on this part for rk2 ... should this just be dx/dt (x[n+1]-x[n])/(time[n+1] - time[n])??
+#
+#         ax,ay = accel(x,y)
+#         next_vx = vx + dt*ax
+#         next_vy = vy + dt*ay
+#
+#         return next_vx, next_vy
+#
+#     def k1(vx,vy,dt):
+#
+#         #this is a velocity x time so, a distance ... used as a prediction update of the poistion for use in k2
+#         k1x = dt * vx #partial prediction step in x position
+#         k1y = dt * vy #partial prediction step in y position
+#
+#         return k1x,k1y
+#
+#     def k2(x,y,vx,vy,k1x,k1y,dt):
+#         beta = 1.0
+#         alpha = 1.0
+#         #k2 = dt * velocity at bit in the future (not the full step, but the velocity at
+#         # a partial future x and future time, by projecting forward from k1
+#
+#         predict_vx, predict_vy = next_velocity(x+beta*k1x,y+beta*k1y,vx,vy,alpha*dt)
+#         k2x = dt * predict_vx
+#         k2y = dt * predict_vy
+#
+#         return k2x,k2y, predict_vx, predict_vy
+#
+#
+#     def next_position(x,y,k1x,k1y,k2x,k2y):
+#         """
+#
+#         :param x:
+#         :param y:
+#         :param vx:
+#         :param vy:
+#         :param dt:
+#         :return:
+#         """
+#
+#         a = 0.5
+#         b = 0.5
+#
+#         next_x = x + a*k1x + b*k2x
+#         next_y = y + a*k1y + b*k2y
+#
+#         return next_x, next_y
+#
+#     n = 0 #index
+#     time = [0.]
+#     while time[n] < orbits * PERIOD:
+#         dt = time_step(x[n],y[n],adaptive_time)
+#         time.append(time[n]+dt)
+#
+#         k1x,k1y = k1(vx[n],vy[n],dt)
+#         k2x,k2y,predict_vx, predict_vy  = k2(x[n],y[n],vx[n],vy[n],k1x,k1y,dt)
+#
+#         next_x, next_y = next_position(x[n],y[n],k1x,k1y,k2x,k2y)
+#
+#         x.append(next_x)
+#         y.append(next_y)
+#         vx.append(predict_vx)
+#         vy.append(predict_vy)
+#
+#         #vx.append((x[n+1] -x[n])/(time[n+1] - time[n]))
+#         #vy.append((y[n+1] -y[n])/(time[n+1] - time[n]))
+#         n+=1
+#
+#     return np.array(x), np.array(y), np.array(vx), np.array(vy), np.array(time)
+#     #end rk2
 
 
