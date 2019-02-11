@@ -15,6 +15,9 @@ about curved metrics, etc).
 Also, using numerical pi, so there are small precision errors tha will creep in, but I am ignoring those as well.
 
 Coordinate axis places the Sun at 0,0
+
+Time over which the orbit is simulated is 10x the analytical orbital period, not 10 orbits in each simulation (as the 
+orbit may become unbound)
 """
 
 import numpy as np
@@ -40,10 +43,10 @@ AU = 1.496e13
 
 
 def make_plots(x,y,k,u,t,title="",fn=None):
-    plt.figure(figsize=(12,4))
+    plt.figure(figsize=(15,4))
 
     plt.suptitle(title)
-    plt.subplot(121)
+    plt.subplot(131)
     plt.title("Position")
     plt.ylabel("[AU]")
     plt.xlabel("[AU]")
@@ -54,7 +57,26 @@ def make_plots(x,y,k,u,t,title="",fn=None):
     plt.legend()
 
 
-    plt.subplot(122)
+    #todo: overplot analytic solution (plot the ellipse with focus at 0,0)
+    #todo: as a "zoom in" centered on the orbit
+
+    plt.suptitle(title)
+    plt.subplot(132)
+    plt.title("Position (zoom/centered)")
+    plt.ylabel("[AU]")
+    plt.xlabel("[AU]")
+    plt.plot(x/AU,y/AU)
+    plt.scatter(x[0]/AU,y[0]/AU,marker="x",s=20,c="green",zorder=9,label="Start")
+    plt.scatter(x[-1]/AU, y[-1]/AU, marker="x", s=20, c="red",zorder=9,label="Stop")
+    plt.scatter(0,0,marker='o',s=20,c='orange',zorder=9,label="Sun")
+
+    plt.xlim(xmin=-5,xmax=40)
+    plt.ylim(ymin=-22.5, ymax=22.5)
+
+    plt.legend()
+
+
+    plt.subplot(133)
     plt.title("Total Energy")
     plt.ylabel(r"$erg\ \times10^{29}$")
     plt.xlabel("Time [PERIOD]")
@@ -125,8 +147,8 @@ def time_step(x, y, adaptive=False):
     :return:
     """
     if adaptive:
-        #todo: make an adaptive time step
-        return min(PERIOD/1000.,0.1 * time_ff(x,y))
+        #make an adaptive time step based on free fall time
+        return min(PERIOD/1000.,0.01 * time_ff(x,y))
     else:
         return PERIOD/1000.
 
@@ -190,23 +212,234 @@ def explicit_euler(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, a
     #end explicit_euler
 
 
+def rk2(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, adaptive_time = False):
+    """
+
+    :param x: vector of x positions, length 1 s|t x[0] == initial x position
+    :param y: vector of y positions, length 1 s|t x[0] == initial y position
+    :param vx: vector of x velocities, length 1 s|t x[0] == initial x velocity
+    :param vy: vector of y velocities, length 1 s|t x[0] == initial y velocity
+    :param vy: vector of time steps, length 1 s|t x[0] == initial time step
+    :param orbits: integer number of orbits to simulate
+    :return: position vector (x,y,t) as 2D matrix
+    """
+
+    def next_velocity(x,y,vx,vy,dt):
+        """
+
+        :param x,y: current (nth) position
+        :param vx,xy: current (nth) velocity
+        :param dt:timestep
+        :return: n+1 velocity in x and y
+        """
+
+        #todo: work on this part for rk2 ... should this just be dx/dt (x[n+1]-x[n])/(time[n+1] - time[n])??
+
+        ax,ay = accel(x,y)
+        next_vx = vx + dt*ax
+        next_vy = vy + dt*ay
+
+        return next_vx, next_vy
+
+    def k1(vx,vy,dt):
+
+        #this is a velocity x time so, a distance ... used as a prediction update of the poistion for use in k2
+        k1x = dt * vx #partial prediction step in x position
+        k1y = dt * vy #partial prediction step in y position
+
+        return k1x,k1y
+
+    def k2(x,y,vx,vy,k1x,k1y,dt):
+        beta = 1.0
+        alpha = 1.0
+        #k2 = dt * velocity at bit in the future (not the full step, but the velocity at
+        # a partial future x and future time, by projecting forward from k1
+
+        predict_vx, predict_vy = next_velocity(x+beta*k1x,y+beta*k1y,vx,vy,alpha*dt)
+        k2x = dt * predict_vx
+        k2y = dt * predict_vy
+
+        return k2x,k2y, predict_vx, predict_vy
+
+
+    def next_position(x,y,k1x,k1y,k2x,k2y):
+        """
+
+        :param x:
+        :param y:
+        :param vx:
+        :param vy:
+        :param dt:
+        :return:
+        """
+
+        a = 0.5
+        b = 0.5
+
+        next_x = x + a*k1x + b*k2x
+        next_y = y + a*k1y + b*k2y
+
+        return next_x, next_y
+
+    n = 0 #index
+    time = [0.]
+    while time[n] < orbits * PERIOD:
+        dt = time_step(x[n],y[n],adaptive_time)
+        time.append(time[n]+dt)
+
+        k1x,k1y = k1(vx[n],vy[n],dt)
+        k2x,k2y,predict_vx, predict_vy  = k2(x[n],y[n],vx[n],vy[n],k1x,k1y,dt)
+
+        next_x, next_y = next_position(x[n],y[n],k1x,k1y,k2x,k2y)
+
+        x.append(next_x)
+        y.append(next_y)
+        vx.append(predict_vx)
+        vy.append(predict_vy)
+
+        #vx.append((x[n+1] -x[n])/(time[n+1] - time[n]))
+        #vy.append((y[n+1] -y[n])/(time[n+1] - time[n]))
+        n+=1
+
+    return np.array(x), np.array(y), np.array(vx), np.array(vy), np.array(time)
+    #end rk2
+
+
+
+
+
+
+
+
+
+
+def rk2b(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=10, adaptive_time = False):
+    """
+    Slightly different organization, but the same results. A bit clearer to me in terms of coding
+
+    basically
+    w_n+1 = w_n + dt*w'_n + (dt)**2 * w''_n
+    w'_n+1 = w'_n + dt*w''_n
+
+
+    :param x: vector of x positions, length 1 s|t x[0] == initial x position
+    :param y: vector of y positions, length 1 s|t x[0] == initial y position
+    :param vx: vector of x velocities, length 1 s|t x[0] == initial x velocity
+    :param vy: vector of y velocities, length 1 s|t x[0] == initial y velocity
+    :param vy: vector of time steps, length 1 s|t x[0] == initial time step
+    :param orbits: integer number of orbits to simulate
+    :return: position vector (x,y,t) as 2D matrix
+    """
+
+    def next_velocity(x,y,vx,vy,dt):
+        """
+
+        :param x,y: current (nth) position
+        :param vx,xy: current (nth) velocity
+        :param dt:timestep
+        :return: n+1 velocity in x and y
+        """
+
+        ax,ay = accel(x,y)
+        next_vx = vx + dt*ax
+        next_vy = vy + dt*ay
+
+        return next_vx, next_vy
+
+
+    def next_position(x,y,vx,vy,dt):
+        """
+
+        :param x:
+        :param y:
+        :param vx:
+        :param vy:
+        :param dt:
+        :return:
+        """
+
+        ax,ay = accel(x,y)
+
+        next_x = x + dt*vx + 0.5*(dt**2)*ax
+        next_y = y + dt*vy + 0.5*(dt**2)*ay
+
+        return next_x, next_y
+
+    n = 0 #index
+    time = [0.]
+    while time[n] < orbits * PERIOD:
+        dt = time_step(x[n],y[n],adaptive_time)
+        time.append(time[n]+dt)
+
+        next_x, next_y = next_position(x[n],y[n],vx[n],vy[n],dt)
+        next_vx, next_vy = next_velocity(x[n],y[n],vx[n],vy[n],dt)
+
+        x.append(next_x)
+        y.append(next_y)
+        vx.append(next_vx)
+        vy.append(next_vy)
+
+        n+=1
+
+    return np.array(x), np.array(y), np.array(vx), np.array(vy), np.array(time)
+    #end rk2b
+
+
 
 def main():
 
 
-    #first explicit Euler
-    x,y,vx,vy,t = explicit_euler(orbits=10.) #use all default values
+
+    ################
+    #test
+    #################
+
+
+
+
+    #exit(0)
+
+
+
+    #######################
+    #explicit Euler
+    ######################
+    x = [APHELION];    y = [0];    vx = [0];    vy = [APHELION_VELOCITY];
+    x,y,vx,vy,t = explicit_euler(x, y, vx, vy,orbits=10.) #use all default values
     u = potential_energy(x,y)
     k = kinetic_energy(vx,vy)
 
-    make_plots(x,y,k,u,t,"Explicit Euler")
+    make_plots(x,y,k,u,t,"Explicit Euler (Fixed Time Step)")
 
+    #reset vectors (deal with context)
     x = [APHELION]; y = [0]; vx = [0]; vy = [APHELION_VELOCITY];
     x, y, vx, vy, t = explicit_euler(x, y, vx, vy,orbits=10.,adaptive_time=True)  # use all default values
     u = potential_energy(x, y)
     k = kinetic_energy(vx, vy)
 
-    make_plots(x, y, k, u, t, "Explicit Euler (Dynamic Time)")
+    make_plots(x, y, k, u, t, "Explicit Euler (Dynamic Time Step)")
+
+
+    ###################
+    #RK2
+    ###################
+    x = [APHELION];    y = [0];    vx = [0];    vy = [APHELION_VELOCITY];
+    x,y,vx,vy,t = rk2b(x, y, vx, vy,orbits=10.) #use all default values
+    u = potential_energy(x,y)
+    k = kinetic_energy(vx,vy)
+
+    make_plots(x,y,k,u,t,"RK2 (Fixed Time Step)")
+
+    # RK2
+    x = [APHELION];
+    y = [0];
+    vx = [0];
+    vy = [APHELION_VELOCITY];
+    x, y, vx, vy, t = rk2b(x, y, vx, vy, orbits=10.,adaptive_time=True)  # use all default values
+    u = potential_energy(x, y)
+    k = kinetic_energy(vx, vy)
+
+    make_plots(x, y, k, u, t, "RK2 (Dynamic Time Step)")
 
 
 
