@@ -29,7 +29,8 @@ APHELION = 524823895700000. #cm
 #note: we are sensitive to the initial velocity (coupled with the time step size) as to whether the orbit will be
 # bound or not as the error in energy increases
 PERIEHLION_VELOCITY = 5500000. #cm/s
-APHELION_VELOCITY = 100000.#90000.0 #cm/s
+APHELION_VELOCITY = 88000.#90000.0 #cm/s
+
 
 SEMI_MAJOR_AXIS = 266795001700000. #cm
 PERIOD = 27509.1291 * 86400. #days * seconds
@@ -41,6 +42,28 @@ M_COMET = 2.2e17 #g
 AU = 1.496e13
 
 
+
+
+def analytic_orbit():
+
+    #todo: fix the coordinates .... 0,0 is the SUN
+    #but this is 0,0 at center of ellipse
+
+    #so, shift the x-range to 1000x -SEMI-MAJOR to +SEMI_MAJOR
+    #then calcuate the curve
+    #then add such that most -x --> -PERIHELION
+
+    x = np.linspace(-SEMI_MAJOR_AXIS,SEMI_MAJOR_AXIS,1000)
+
+    a = SEMI_MAJOR_AXIS
+    b = a * np.sqrt(1-ECCENTRICITY**2)
+
+    py = b/a * np.sqrt((a**2) - (x**2))
+
+    x = x + (SEMI_MAJOR_AXIS - PERIEHLION)
+
+    #my = -1 * py
+    return x,py
 
 def make_plots(x,y,k,u,t,title="",fn=None):
     plt.figure(figsize=(15,4))
@@ -54,18 +77,26 @@ def make_plots(x,y,k,u,t,title="",fn=None):
     plt.scatter(x[0]/AU,y[0]/AU,marker="x",s=20,c="green",zorder=9,label="Start")
     plt.scatter(x[-1]/AU, y[-1]/AU, marker="x", s=20, c="red",zorder=9,label="Stop")
     plt.scatter(0,0,marker='o',s=20,c='orange',zorder=9,label="Sun")
+    #plt.ylim(ymin=-22.5, ymax=22.5)
     plt.legend()
 
 
-    #todo: overplot analytic solution (plot the ellipse with focus at 0,0)
-    #todo: as a "zoom in" centered on the orbit
 
+
+
+    #overplot analytic solution (plot the ellipse with focus at 0,0)
+    #as a "zoom in" centered on the orbit
     plt.suptitle(title)
     plt.subplot(132)
     plt.title("Position (zoom/centered)")
     plt.ylabel("[AU]")
     plt.xlabel("[AU]")
     plt.plot(x/AU,y/AU)
+
+    orbit_x, orbit_y = analytic_orbit()
+    plt.plot(orbit_x / AU, orbit_y / AU, color="red", ls=":")
+    plt.plot(orbit_x / AU, -1 * orbit_y / AU, color="red", ls=":",label="Analytic Orbit")
+
     plt.scatter(x[0]/AU,y[0]/AU,marker="x",s=20,c="green",zorder=9,label="Start")
     plt.scatter(x[-1]/AU, y[-1]/AU, marker="x", s=20, c="red",zorder=9,label="Stop")
     plt.scatter(0,0,marker='o',s=20,c='orange',zorder=9,label="Sun")
