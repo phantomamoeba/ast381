@@ -29,7 +29,7 @@ APHELION = 524823895700000. #cm
 #note: we are sensitive to the initial velocity (coupled with the time step size) as to whether the orbit will be
 # bound or not as the error in energy increases
 PERIEHLION_VELOCITY = 5500000. #cm/s
-APHELION_VELOCITY = 89000.#90000.0 #cm/s
+APHELION_VELOCITY = 100000. #cm/s
 SEMI_MAJOR_AXIS = 266795001700000. #cm
 PERIOD = 27509.1291 * 86400. #days * seconds
 ECCENTRICITY = 0.96714291
@@ -112,9 +112,6 @@ def make_plots(x,y,k,u,t,title="",fn=None):
     plt.xlabel("Time [PERIOD]")
     plt.plot(t / PERIOD, (k + u) / 1e29, color='k', zorder=9, label="Sum")
 
-    # plt.plot(t / PERIOD, u / 1e29, color='blue',ls=":",label="Pot")
-    # plt.plot(t / PERIOD, k / 1e29, color='red',ls=":",label="Kin")
-    #plt.legend()
 
     if fn is not None:
         plt.savefig(fn)
@@ -159,10 +156,6 @@ def time_step(x, y, adaptive=False):
     """
     Note: not going to worry about a softening length (since only 1 pair and no collission)
     Using 0.1 as scaling factor on the time
-    :param x:
-    :param y:
-    :param adaptive:
-    :return:
     """
     if adaptive:
         #make an adaptive time step based on free fall time
@@ -313,7 +306,7 @@ def main():
     u = potential_energy(x,y)
     k = kinetic_energy(vx,vy)
 
-    make_plots(x,y,k,u,t,"Explicit Euler (Fixed Time Step)")
+    make_plots(x,y,k,u,t,"Explicit Euler (Fixed Time Step)",fn="p1_fix_euler.png")
 
     #reset vectors (deal with context)
     x = [APHELION]; y = [0]; vx = [0]; vy = [APHELION_VELOCITY];
@@ -321,7 +314,7 @@ def main():
     u = potential_energy(x, y)
     k = kinetic_energy(vx, vy)
 
-    make_plots(x, y, k, u, t, "Explicit Euler (Dynamic Time Step)")
+    make_plots(x, y, k, u, t, "Explicit Euler (Dynamic Time Step)", fn="p2_dyn_euler.png")
 
 
     ###################
@@ -332,7 +325,7 @@ def main():
     u = potential_energy(x,y)
     k = kinetic_energy(vx,vy)
 
-    make_plots(x,y,k,u,t,"RK2 (Fixed Time Step)")
+    make_plots(x,y,k,u,t,"RK2 (Fixed Time Step)",fn="p3_fix_fk2.png")
 
     # RK2
     x = [APHELION];    y = [0];    vx = [0];    vy = [APHELION_VELOCITY];
@@ -340,7 +333,7 @@ def main():
     u = potential_energy(x, y)
     k = kinetic_energy(vx, vy)
 
-    make_plots(x, y, k, u, t, "RK2 (Dynamic Time Step)")
+    make_plots(x, y, k, u, t, "RK2 (Dynamic Time Step)",fn="p4_dyn_fk2.png")
 
 
     ###################
@@ -351,7 +344,7 @@ def main():
     u = potential_energy(x,y)
     k = kinetic_energy(vx,vy)
 
-    make_plots(x,y,k,u,t,"Leapfrog (Fixed Time Step)")
+    make_plots(x,y,k,u,t,"Leapfrog (Fixed Time Step)",fn="p5_fix_leapfrog.png")
 
     # RK2
     x = [APHELION];    y = [0];    vx = [0];    vy = [APHELION_VELOCITY];
@@ -359,97 +352,10 @@ def main():
     u = potential_energy(x, y)
     k = kinetic_energy(vx, vy)
 
-    make_plots(x, y, k, u, t, "Leapfrog (Dynamic Time Step)")
+    make_plots(x, y, k, u, t, "Leapfrog (Dynamic Time Step)",fn="p6_dyn_leapfrog.png")
 
 
 if __name__ == '__main__':
     main()
-
-
-
-
-
-# #junk
-# def rk2(x=[APHELION],y=[0],vx=[0],vy=[APHELION_VELOCITY],orbits=NUM_ORBITS, adaptive_time = False):
-#
-#     def next_velocity(x,y,vx,vy,dt):
-#         """
-#
-#         :param x,y: current (nth) position
-#         :param vx,xy: current (nth) velocity
-#         :param dt:timestep
-#         :return: n+1 velocity in x and y
-#         """
-#
-#         #todo: work on this part for rk2 ... should this just be dx/dt (x[n+1]-x[n])/(time[n+1] - time[n])??
-#
-#         ax,ay = accel(x,y)
-#         next_vx = vx + dt*ax
-#         next_vy = vy + dt*ay
-#
-#         return next_vx, next_vy
-#
-#     def k1(vx,vy,dt):
-#
-#         #this is a velocity x time so, a distance ... used as a prediction update of the poistion for use in k2
-#         k1x = dt * vx #partial prediction step in x position
-#         k1y = dt * vy #partial prediction step in y position
-#
-#         return k1x,k1y
-#
-#     def k2(x,y,vx,vy,k1x,k1y,dt):
-#         beta = 1.0
-#         alpha = 1.0
-#         #k2 = dt * velocity at bit in the future (not the full step, but the velocity at
-#         # a partial future x and future time, by projecting forward from k1
-#
-#         predict_vx, predict_vy = next_velocity(x+beta*k1x,y+beta*k1y,vx,vy,alpha*dt)
-#         k2x = dt * predict_vx
-#         k2y = dt * predict_vy
-#
-#         return k2x,k2y, predict_vx, predict_vy
-#
-#
-#     def next_position(x,y,k1x,k1y,k2x,k2y):
-#         """
-#
-#         :param x:
-#         :param y:
-#         :param vx:
-#         :param vy:
-#         :param dt:
-#         :return:
-#         """
-#
-#         a = 0.5
-#         b = 0.5
-#
-#         next_x = x + a*k1x + b*k2x
-#         next_y = y + a*k1y + b*k2y
-#
-#         return next_x, next_y
-#
-#     n = 0 #index
-#     time = [0.]
-#     while time[n] < orbits * PERIOD:
-#         dt = time_step(x[n],y[n],adaptive_time)
-#         time.append(time[n]+dt)
-#
-#         k1x,k1y = k1(vx[n],vy[n],dt)
-#         k2x,k2y,predict_vx, predict_vy  = k2(x[n],y[n],vx[n],vy[n],k1x,k1y,dt)
-#
-#         next_x, next_y = next_position(x[n],y[n],k1x,k1y,k2x,k2y)
-#
-#         x.append(next_x)
-#         y.append(next_y)
-#         vx.append(predict_vx)
-#         vy.append(predict_vy)
-#
-#         #vx.append((x[n+1] -x[n])/(time[n+1] - time[n]))
-#         #vy.append((y[n+1] -y[n])/(time[n+1] - time[n]))
-#         n+=1
-#
-#     return np.array(x), np.array(y), np.array(vx), np.array(vy), np.array(time)
-#     #end rk2
 
 
