@@ -12,14 +12,10 @@ intro comments
 import numpy as np
 import matplotlib.pyplot as plt
 
-#need to think about space (x,y) and time (all x,y at a particular time step)
-#maybe a 3 DIM ndarry x,y,t ?
-#maybe not ... seems all are at t -> t+1 and need only space n-1 to n+1
-
 
 L = 5. * 2. * np.pi #width of the graph (5 cycle lengths)
 cs = 1.0 #sound speed
-show_animation = False
+show_animation = False  #if true, animate the solutions as they progress (shows the periodic boundaries)
 
 def initial_wave(lam,dx):
     """
@@ -56,23 +52,27 @@ def animate(x,y,title=None,step=None,pause=0.001):
     plt.show(block=False)
 
 
-def plot(x,y1,y2,y3,y4,title):
+def plot(x,y2,y3,y4,title, fn=None):
 
     #just zoom in on the middle part
     xl_idx = (np.abs(x - L / 3.0)).argmin()
     xr_idx = (np.abs(x - (L - L / 3.0))).argmin()
 
+    ref_dx = 2. * np.pi / 1000.
+    ref_lam = 100. * ref_dx
+
+    x_ref, y_ref = initial_wave(ref_lam, ref_dx)
+    xl_ref_idx = (np.abs(x_ref - L / 3.0)).argmin()
+    xr_ref_idx = (np.abs(x_ref - (L - L / 3.0))).argmin()
 
     plt.close('all')
     plt.figure(figsize=(10, 10))
     plt.suptitle(title)
     plt.subplots_adjust(wspace=0.4, hspace=0.4)
 
-    # numerical orbit plot
-
     plt.subplot(221)
     plt.title("Reference (Analytic)")
-    plt.plot(x[xl_idx:xr_idx], y1[xl_idx:xr_idx])
+    plt.plot(x_ref[xl_ref_idx:xr_ref_idx], y_ref[xl_ref_idx:xr_ref_idx])
 
     plt.subplot(222)
     plt.title("FTCS")
@@ -86,7 +86,11 @@ def plot(x,y1,y2,y3,y4,title):
     plt.title("Lax-Wendroff")
     plt.plot(x[xl_idx:xr_idx], y4[xl_idx:xr_idx])
 
-    plt.show()
+    if fn is not None:
+        plt.savefig(fn)
+    else:
+        plt.show()
+    plt.close('all')
 
 
 
@@ -163,47 +167,20 @@ def lax_wen(_x,_y,_cs,_dx,_dt):
     return next_y
 
 
+
 def main():
 
     dx = 2. * np.pi / 1000.
     dt = dx/cs * 0.5 #better than minimum CFL criterion
-    steps = 10000 #10x cycles in steps
+    steps = 20000 #10x cycles in steps
 
     lam = 100.*dx
-
-
-    # ######################
-    # #Lax-Wen
-    # ######################
-    #
-    # x, y = initial_wave(lam,dx)
-    # for i in range(steps):
-    #     y = lax_wen(x,y,cs,dx,dt)
-    #
-    #     if show_animation: #animation
-    #         if i %100 == 0:
-    #             animate(x,y,title="Lax-Wen", step=i)
-    #             print(i)
-    #
-    # #plot at end
-    # plt.plot(x, y)
-    # plt.show()
-    # exit()
-    #
-
-
-
-
-
-
 
     ######################
     # FTCS
     ######################
 
     x, y = initial_wave(lam, dx)
-
-    y_init = y
 
     for i in range(steps):
         y = ftcs(x, y, cs, dx, dt)
@@ -242,7 +219,63 @@ def main():
 
     y_lax_wen = y
 
-    plot(x,y_init,y_ftcs,y_lax,y_lax_wen,title="High Resolution")
+    plot(x,y_ftcs,y_lax,y_lax_wen,title="High Resolution",fn="high_res.png")
+
+
+
+
+
+    #################################
+    #Low Resolution
+    ################################
+
+    lam = 10. * dx
+
+    ######################
+    # FTCS
+    ######################
+
+    x, y = initial_wave(lam, dx)
+
+
+    for i in range(steps):
+        y = ftcs(x, y, cs, dx, dt)
+
+        if show_animation:  # animation
+            if i % 100 == 0:
+                animate(x, y, title="FTCS", step=i)
+
+    y_ftcs = y
+
+    ######################
+    # Lax
+    ######################
+
+    x, y = initial_wave(lam, dx)
+    for i in range(steps):
+        y = lax(x, y, cs, dx, dt)
+
+        if show_animation:  # animation
+            if i % 100 == 0:
+                animate(x, y, title="Lax", step=i)
+
+    y_lax = y
+
+    ######################
+    # Lax-Wen
+    ######################
+
+    x, y = initial_wave(lam, dx)
+    for i in range(steps):
+        y = lax_wen(x, y, cs, dx, dt)
+
+        if show_animation:  # animation
+            if i % 100 == 0:
+                animate(x, y, title="Lax-Wen", step=i)
+
+    y_lax_wen = y
+
+    plot(x, y_ftcs, y_lax, y_lax_wen, title="Low Resolution",fn="low_res.png")
 
     #
     # #Dummy
