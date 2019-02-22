@@ -6,7 +6,14 @@
 __author__ = "Dustin Davis"
 
 """
-intro comments
+
+Interesting observations:
+
+1) selecting dt s|t the |Xi| is exactly 1, Lax-Wendroff reduces to Lax. In all other cases (< 1) Lax-Wendroff is superior
+2) With exception of Lax-Wendroff at high resolution, the choice of dt can have a significant impact on the final shape
+and scale of the advected wave-packet
+  
+
 """
 
 import numpy as np
@@ -31,7 +38,7 @@ def initial_wave(lam,dx):
     x0_idx = (np.abs(x - L/2.0)).argmin()
     x0 = x[x0_idx]
 
-    y = np.cos(k*(x-x0))*np.exp((-1.*(x-x0)**2.)/2.)
+    y = np.cos(k*(x-x0))*np.exp(-0.5*(x-x0)**2.)
 
     return x,y
 
@@ -57,6 +64,9 @@ def plot(x,y2,y3,y4,title, fn=None):
     #just zoom in on the middle part
     xl_idx = (np.abs(x - L / 3.0)).argmin()
     xr_idx = (np.abs(x - (L - L / 3.0))).argmin()
+
+    #xl_idx = 0
+    #xr_idx = -1
 
     ref_dx = 2. * np.pi / 1000.
     ref_lam = 100. * ref_dx
@@ -97,7 +107,7 @@ def plot(x,y2,y3,y4,title, fn=None):
 
 def perfect_shift(y):
     """
-    Sift perfectly, no calculations of y; just y(n) -> y((n+1)%L)
+    Shift perfectly, no calculations of y; just y(n) -> y((n+1)%L)
     (basically a rotate-right) ... just for reference
     """
     return np.append([y[-1]],y[0:-1])
@@ -129,7 +139,8 @@ def ftcs(_x,_y,_cs,_dx,_dt):
 
     #this can get out of hand fast (overflow), so will limit the max value
     if np.max(_y) > 1e30:
-        _y /= 1e30
+        _y /= 1e30 #rescale, but keep shape (it is a mess anyway, so there is no real harm)
+
     s = _cs * _dt / (2. * _dx)
     next_y = _y[:] - s * (np.append(_y[1:], _y[0]) - np.append(_y[-1], _y[:-1]))
 
@@ -156,6 +167,8 @@ def lax_wen(_x,_y,_cs,_dx,_dt):
     Advance 1 step using Lax-Wendroff
     :return:
 
+    NOTICE: for choice of dt s|t the |Xi| of CFL criterion is exactly 1, this reduces to Lax
+
     """
 
     s = _cs * _dt / (2. * _dx)
@@ -170,9 +183,21 @@ def lax_wen(_x,_y,_cs,_dx,_dt):
 
 def main():
 
-    dx = 2. * np.pi / 1000.
-    dt = dx/cs * 0.5 #better than minimum CFL criterion
-    steps = 20000 #10x cycles in steps
+
+    dx_scale = 1000. #how many bins per period
+    dx = 2. * np.pi / dx_scale #bin width (not the best choice of naming)
+
+    #choice of scale can greatly impact FTCS and Lax (regardless of resoultion) and Lax-Wendroff at low-resolution
+    #interestingly ... if I set this to exactly 1.0, Lax-Wendroff reduces (confirmed analytically) to Lax
+    # for all other scale values, Lax-Wed is superior)
+    dt_scale = 0.1  # can be up to 1 (for this CFL criterion ... Lax or Lax-Wendroff )
+
+    dt = dx/cs * dt_scale #better than minimum CFL criterion; time step width
+    #reminder to self ... these are bin widths, dx/dt is NOT the propogation "velocity"
+
+    steps = int(10 * dx_scale /dt_scale) #10x cycles in steps (dx_scale becase dt is defined in terms of it)
+
+    animate_step = steps//100 #show xxx snap-shot states per run
 
     lam = 100.*dx
 
@@ -180,13 +205,14 @@ def main():
     # FTCS
     ######################
 
+    print("FTCS High resolution")
     x, y = initial_wave(lam, dx)
 
     for i in range(steps):
         y = ftcs(x, y, cs, dx, dt)
 
         if show_animation:  # animation
-            if i % 100 == 0:
+            if i % animate_step == 0:
                 animate(x, y, title="FTCS", step=i)
 
     y_ftcs = y
@@ -195,33 +221,37 @@ def main():
     # Lax
     ######################
 
+    print("Lax High resolution")
+
     x, y = initial_wave(lam, dx)
     for i in range(steps):
         y = lax(x, y, cs, dx, dt)
 
         if show_animation:  # animation
-            if i % 100 == 0:
+            if i % animate_step == 0:
                 animate(x, y, title="Lax", step=i)
 
     y_lax = y
 
     ######################
-    #Lax-Wen
+    #Lax-Wendroff
     ######################
+
+    print("Lax-Wendroff High resolution")
 
     x, y = initial_wave(lam, dx)
     for i in range(steps):
         y = lax_wen(x,y,cs,dx,dt)
 
         if show_animation: #animation
-            if i %100 == 0:
+            if i % animate_step == 0:
                 animate(x,y,title="Lax-Wen", step=i)
 
     y_lax_wen = y
 
+
+    #plot up all methoods
     plot(x,y_ftcs,y_lax,y_lax_wen,title="High Resolution",fn="high_res.png")
-
-
 
 
 
@@ -235,64 +265,52 @@ def main():
     # FTCS
     ######################
 
-    x, y = initial_wave(lam, dx)
+    print("FTCS Low resolution")
 
+    x, y = initial_wave(lam, dx)
 
     for i in range(steps):
         y = ftcs(x, y, cs, dx, dt)
 
         if show_animation:  # animation
-            if i % 100 == 0:
+            if i % animate_step == 0:
                 animate(x, y, title="FTCS", step=i)
-
     y_ftcs = y
 
     ######################
     # Lax
     ######################
+    print("Lax Low resolution")
 
     x, y = initial_wave(lam, dx)
     for i in range(steps):
         y = lax(x, y, cs, dx, dt)
 
         if show_animation:  # animation
-            if i % 100 == 0:
+            if i % animate_step == 0:
                 animate(x, y, title="Lax", step=i)
-
     y_lax = y
 
     ######################
-    # Lax-Wen
+    # Lax-Wendroff
     ######################
+
+    print("Lax-Wendroff Low resolution")
 
     x, y = initial_wave(lam, dx)
     for i in range(steps):
         y = lax_wen(x, y, cs, dx, dt)
 
         if show_animation:  # animation
-            if i % 100 == 0:
+            if i % animate_step == 0:
                 animate(x, y, title="Lax-Wen", step=i)
 
     y_lax_wen = y
 
+    # plot up all methoods
     plot(x, y_ftcs, y_lax, y_lax_wen, title="Low Resolution",fn="low_res.png")
 
-    #
-    # #Dummy
-    # x,y = initial_wave(100*dx)
-    #
-    # plt.plot(x,y)
-    #
-    # for i in range(1000):
-    #     y = perfect_shift(y)
-    #
-    # plt.plot(x,y)
-    # plt.show()
-    # #end Dummy
-    #
-    # #FTCS
-    # x, y = initial_wave(100 * dx)
-    # #for i in range(1000):
+
 
 if __name__ == '__main__':
     main()
