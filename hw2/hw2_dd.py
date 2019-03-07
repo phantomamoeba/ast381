@@ -11,7 +11,8 @@ Interesting observations:
 
 1) selecting dt s|t the |Xi| is exactly 1, Lax-Wendroff reduces to Lax. In all other cases (< 1) Lax-Wendroff is superior
 2) With exception of Lax-Wendroff at high resolution, the choice of dt can have a significant impact on the final shape
-and scale of the advected wave-packet
+and scale of the advected wave-packet. e.g. Lax looks pretty good (in shape, though not amplitude) at 0.5, but really
+starts to break down with dt_scale less than 0.2
   
 
 """
@@ -21,7 +22,14 @@ import matplotlib.pyplot as plt
 
 
 L = 5. * 2. * np.pi #width of the graph (5 cycle lengths)
-cs = 1.0 #sound speed
+cs = 1.0 #propogation speed
+dx_scale = 1000.  # how many bins per period
+
+# choice of scale can greatly impact FTCS and Lax (regardless of resoultion) and Lax-Wendroff at low-resolution
+# interestingly ... if I set this to exactly 1.0, Lax-Wendroff reduces (confirmed analytically) to Lax
+# for all other scale values, Lax-Wed is superior)
+dt_scale = 1.  # can be up to exactly 1 (for this CFL criterion ... Lax or Lax-Wendroff )
+
 show_animation = False  #if true, animate the solutions as they progress (shows the periodic boundaries)
 
 def initial_wave(lam,dx):
@@ -90,11 +98,15 @@ def plot(x,y2,y3,y4,title, fn=None):
 
     plt.subplot(223)
     plt.title("Lax")
-    plt.plot(x[xl_idx:xr_idx], y3[xl_idx:xr_idx])
+    plt.plot(x[xl_idx:xr_idx], y3[xl_idx:xr_idx],label="Lax")
+    plt.plot(x_ref[xl_ref_idx:xr_ref_idx], y_ref[xl_ref_idx:xr_ref_idx],ls="-",label="Analytic")
+    plt.legend()
 
     plt.subplot(224)
     plt.title("Lax-Wendroff")
-    plt.plot(x[xl_idx:xr_idx], y4[xl_idx:xr_idx])
+    plt.plot(x[xl_idx:xr_idx], y4[xl_idx:xr_idx],label="Lax-Wendroff")
+    plt.plot(x_ref[xl_ref_idx:xr_ref_idx], y_ref[xl_ref_idx:xr_ref_idx],ls="-",label="Analytic")
+    plt.legend(loc="upper right")
 
     if fn is not None:
         plt.savefig(fn)
@@ -184,13 +196,8 @@ def lax_wen(_x,_y,_cs,_dx,_dt):
 def main():
 
 
-    dx_scale = 1000. #how many bins per period
-    dx = 2. * np.pi / dx_scale #bin width (not the best choice of naming)
 
-    #choice of scale can greatly impact FTCS and Lax (regardless of resoultion) and Lax-Wendroff at low-resolution
-    #interestingly ... if I set this to exactly 1.0, Lax-Wendroff reduces (confirmed analytically) to Lax
-    # for all other scale values, Lax-Wed is superior)
-    dt_scale = 0.1  # can be up to 1 (for this CFL criterion ... Lax or Lax-Wendroff )
+    dx = 2. * np.pi / dx_scale #bin width (not the best choice of naming)
 
     dt = dx/cs * dt_scale #better than minimum CFL criterion; time step width
     #reminder to self ... these are bin widths, dx/dt is NOT the propogation "velocity"
