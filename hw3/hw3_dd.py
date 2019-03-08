@@ -9,6 +9,8 @@ __author__ = "Dustin Davis"
 intro comments
 """
 
+NEGATIVE_V = False
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -16,8 +18,11 @@ p_max = 1.0 #arbitrary scale
 v_max = 1.0 #arbitrary scale
 
 x_step = 0.01
-x_grid = np.arange(-10. *v_max, 10 * v_max + x_step, x_step)
+x_grid = np.arange(-15. *v_max, 15.* v_max + x_step, x_step)
 
+#uncomment to make negative
+if NEGATIVE_V:
+    v_max = -1.0
 
 
 def ic():
@@ -44,10 +49,10 @@ def p(x,t):
     elif x >= (v_max * t):
         return 0.0
     else:
-        return 0.5 * (1. - x/(v_max*t))
+        return 0.5 * (1. - x/(v_max*t))*p_max
 
 
-def make_plot(y_0,t):
+def make_plot(y_0,t,label=None):
     """
     Make a plot at a particular time. Given the analytic solution, there is no need to evolve this.
     :param t:
@@ -59,6 +64,36 @@ def make_plot(y_0,t):
         y[i] = p(x_grid[i],t)
 
     # todo: add decoration (title, etc)
-    plt.plot(x_grid,y)
+    plt.plot(x_grid,y,label=label)
 
+
+def main():
+
+    y = ic()
+
+    plt.close('all')
+
+    make_plot(y, 0,label="t=0")
+    make_plot(y, 1,label="t=1")
+    make_plot(y, 5,label="t=5")
+    make_plot(y, 10,label="t=10")
+
+
+
+    if NEGATIVE_V:
+        plt.title("Negative Velocity")
+        plt.legend()
+        plt.savefig("/home/dustin/code/python/ast381_compastro/hw3/negative.png")
+    else:
+        make_plot(y, 50, label="t=50") #add one more to show approach horizontal
+        make_plot(y, 100, label="t=100")  # add one more to show approach horizontal
+        plt.legend()
+        plt.title("Positive Velocity")
+        plt.savefig("/home/dustin/code/python/ast381_compastro/hw3/positive.png")
+
+
+
+
+if __name__ == '__main__':
+    main()
 
