@@ -22,7 +22,7 @@ sb = 5.6704e-5
 PHOTONS_PER_BIN = 100 #100
 TOTAL_SIMS_TO_RUN = 0 #1000 (NOT PER PROC, but overall total)
 SIZE_OF_WAVEBINS = 1000  # 1000 bins in logspace between 10^-2 and 10^0.5 microns
-SIM_SAMPLES = 3
+SIM_SAMPLES = 10
 
 DEBUG_TEST = False
 DEBUG_PRINT = False
@@ -138,6 +138,36 @@ def run_sim(wavelengths,photons_to_simulate,seed=None): #all cores do this
         print("n_esc", type(n_esc[0]) , n_esc)
     return n_esc
 
+def run_sim_mem_alt(wavelengths,photons_to_simulate,seed=None): #all cores do this
+    """
+    Run a single simulation of 100 photons in each bin
+    :param wavelengths:
+    :return: n_esc ... array of the number of photons in each bin that escaped
+    """
+
+    len_waves = len(wavelengths)
+    utilities.prand_seed(seed)
+
+    if DEBUG_PRINT:
+        print("Running sim ....")
+
+    # Propagate photons, build up f_esc as we go
+    n_esc = np.zeros(len_waves).astype(int)
+    for i in range(len_waves):
+        ct = 0
+        for j in range(photons_to_simulate):
+            p = photon.Photon(wavelengths[i])
+            while p.status == 0:
+                p.propagate()
+            if p.status == 1:
+                #print("Escaped ...")
+                ct += 1
+                #else, was absorbed
+        n_esc[i] = ct
+
+    if DEBUG_PRINT:
+        print("n_esc", type(n_esc[0]) , n_esc)
+    return n_esc
 
 def run_all(rank,total_sims_to_run,total_cores,seed=None):
     wavelengths = sim_initialize(rank)
@@ -157,7 +187,8 @@ def run_all(rank,total_sims_to_run,total_cores,seed=None):
 
     print("Proc(%d) running %d photons (%d sim equivalents of %d total sims). seed(%d) ..."
           %(rank,photons_to_simulate * SIZE_OF_WAVEBINS,sims_to_run, total_sims_to_run,seed))
-    sum_n_esc = run_sim(wavelengths,photons_to_simulate,seed)
+    #sum_n_esc = run_sim(wavelengths,photons_to_simulate,seed)
+    sum_n_esc = run_sim_mem_alt(wavelengths, photons_to_simulate, seed)
 
     return sum_n_esc
 
