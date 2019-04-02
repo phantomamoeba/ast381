@@ -1,9 +1,11 @@
 from mpi4py import MPI
+
+import matplotlib
+matplotlib.use('agg')
+
 import photon
 import utilities
 import numpy as np
-#import matplotlib
-#matplotlib.use('agg')
 import matplotlib.pyplot as plt
 import glob
 import sys
@@ -17,9 +19,10 @@ c = 2.998e10
 R_star = 200 * 69.551e9
 sb = 5.6704e-5
 
-PHOTONS_PER_BIN = 10 #100
+PHOTONS_PER_BIN = 100 #100
 TOTAL_SIMS_TO_RUN = 0 #1000 (NOT PER PROC, but overall total)
-SIZE_OF_WAVEBINS = 100  # 1000 bins in logspace between 10^-2 and 10^0.5 microns
+SIZE_OF_WAVEBINS = 1000  # 1000 bins in logspace between 10^-2 and 10^0.5 microns
+SIM_SAMPLES = 3
 
 DEBUG_TEST = False
 DEBUG_PRINT = False
@@ -41,7 +44,36 @@ def blackbody(wavelengths):
     return L_lambd
 
 
+def amdhal(t1,tp,p):
+    return (1.-1./(t1/tp))/(1. - 1/float(p))
 
+def scaling_plot():
+
+    #times manually copied from TACC runs
+    desktop_time = 106.69005069732665
+    norm_times = [76.690588633219400,19.808851182460785,11.202456245819727,5.841509188214938,3.187032667299112]
+    procs = np.array([1.,4.,8.,16.,32.])
+    continuous_procs = np.arange(1,33,1)
+
+
+    #plot prop to 1/procs (scaled to pass through the first point)
+    plt.plot(continuous_procs,1/continuous_procs * norm_times[0],c='b',label="ideal 1/p")
+    plt.plot(procs,norm_times, c='r',label="actual")
+    plt.scatter(procs, norm_times,s=80, facecolors='none', edgecolors='r')
+    plt.scatter([1], [desktop_time], label="desktop")
+
+    plt.title("Mean Walltime vs Number of Processors per Sim\n(Sim = 100 photons x 1000 wavebins)\nTACC Stampede2 SKX-Normal")
+    plt.ylabel("Mean Walltime [s] (per 100,000 photons)")
+    plt.xlabel("Number of processors")
+
+    plt.legend()
+
+    plt.savefig("mean_times.png")
+    plt.close('all')
+
+def amdhal_report(times, procs):
+    for i in range(len(procs)-1):
+        print("p(%d), f_parallel = %0.4f" %(int(procs[i+1]),amdhal(times[0],times[i+1],procs[i+1])))
 
 """
 Each worker will simulate over the entire wavelength grid, since shorter wavelengths die quickly, they cost
@@ -121,10 +153,10 @@ def run_all(rank,total_sims_to_run,total_cores,seed=None):
         return sum_n_esc
 
     #sum_n_esc = np.zeros(len(wavelengths))
-    photons_to_simulate = PHOTONS_PER_BIN * sims_to_run
+    photons_to_simulate = PHOTONS_PER_BIN * sims_to_run #ie. PER wavebin
 
     print("Proc(%d) running %d photons (%d sim equivalents of %d total sims). seed(%d) ..."
-          %(rank,photons_to_simulate,sims_to_run, total_sims_to_run,seed))
+          %(rank,photons_to_simulate * SIZE_OF_WAVEBINS,sims_to_run, total_sims_to_run,seed))
     sum_n_esc = run_sim(wavelengths,photons_to_simulate,seed)
 
     return sum_n_esc
@@ -141,7 +173,7 @@ def main():
 
     #for convenenience
     if TOTAL_SIMS_TO_RUN < 1:
-        TOTAL_SIMS_TO_RUN = 10 * SIZE #give everyone 10, and take an average time for comparision
+        TOTAL_SIMS_TO_RUN = SIM_SAMPLES * SIZE #give everyone SIM_SAMPLES, and take an average time for comparision
 
     #just for learning purposes
     #in this specific case, could skip this entirely and just have each worker use its RANK as the seed
@@ -202,7 +234,7 @@ def main():
         walltime = MPI.Wtime() - walltime
 
         print("Delta-time: ", walltime)
-        print("   Per-sim: ", walltime/(TOTAL_SIMS_TO_RUN/SIZE))
+        print("   Per-sim: ", walltime/TOTAL_SIMS_TO_RUN)
 
     MPI.Finalize()
 
