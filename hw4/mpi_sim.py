@@ -1,3 +1,29 @@
+#Dustin Davis
+#AST 381 Computational Astrophysics
+#Homework #4
+#April 4, 2019
+
+#Note: I did not print the photon and utilities files as they are unchanged from Project 1, but
+#if desired, they will be made available
+
+"""
+Each worker will simulate over the entire wavelength grid, since shorter wavelengths die quickly, they cost
+disproportionatly less time to simulate, so this keeps all workers on an even cost
+
+The wavelength bins are fixed, but it is cheaper to generate in each worker than to distribute the list to all.
+
+The manager decides the total number of simulations to run and broadcasts that number to all workers. A simulation
+consists of 100 photons per wavelength bin (for 100x1000 photons). This is just for learning purposes as it is
+actually more efficient in this case to not broadcast, since the total number is a constant.
+
+The manager generates the random seeds (though that could easily be done in each worker if want to just use the
+RANK as the seed) and scatters.
+
+All cores (manager included) execute 1/p simulations. If 1/p is not an integer, then if the RANK is < remainder,
+the worker performs 1 extra simulation.
+
+"""
+
 from mpi4py import MPI
 
 import matplotlib
@@ -7,10 +33,6 @@ import photon
 import utilities
 import numpy as np
 import matplotlib.pyplot as plt
-import glob
-import sys
-
-
 
 h = 6.626e-27
 k = 1.381e-16
@@ -52,14 +74,19 @@ def scaling_plot():
     #times manually copied from TACC runs
     desktop_time = 106.69005069732665
     norm_times = [76.690588633219400,19.808851182460785,11.202456245819727,5.841509188214938,3.187032667299112]
+
+    #multiple jobs on the node at the same time, 4,8,16 all on same node, 32 on its own
+    m_norm_times = [76.690588633219400, 44.20944422483444, 21.480278888344763, 10.94155711233616, 3.099530728161335]
     procs = np.array([1.,4.,8.,16.,32.])
     continuous_procs = np.arange(1,33,1)
 
 
     #plot prop to 1/procs (scaled to pass through the first point)
     plt.plot(continuous_procs,1/continuous_procs * norm_times[0],c='b',label="ideal 1/p")
-    plt.plot(procs,norm_times, c='r',label="actual")
+    plt.plot(procs,norm_times, c='r',label="p=4,8,16,32 each run separately")
     plt.scatter(procs, norm_times,s=80, facecolors='none', edgecolors='r')
+    plt.plot(procs, m_norm_times, c='g', label="p=4,8,16 simultaneous on single node\np=32 run separately")
+    plt.scatter(procs, m_norm_times, s=80, facecolors='none', edgecolors='g')
     plt.scatter([1], [desktop_time], label="desktop")
 
     plt.title("Mean Walltime vs Number of Processors per Sim\n(Sim = 100 photons x 1000 wavebins)\nTACC Stampede2 SKX-Normal")
@@ -74,24 +101,6 @@ def scaling_plot():
 def amdhal_report(times, procs):
     for i in range(len(procs)-1):
         print("p(%d), f_parallel = %0.4f" %(int(procs[i+1]),amdhal(times[0],times[i+1],procs[i+1])))
-
-"""
-Each worker will simulate over the entire wavelength grid, since shorter wavelengths die quickly, they cost
-disproportionatly less time to simulate, so this keeps all workers on an even cost
-
-The wavelength bins are fixed, but it is cheaper to generate in each worker than to distribute the list to all.
-
-The manager decides the total number of simulations to run and broadcasts that number to all workers. A simulation
-consists of 100 photons per wavelength bin (for 100x1000 photons). This is just for learning purposes as it is
-actually more efficient in this case to not broadcast, since the total number is a constant.
-
-The manager generates the random seeds (though that could easily be done in each worker if want to just use the 
-RANK as the seed) and scatters.
-
-All cores (manager included) execute 1/p simulations. If 1/p is not an integer, then if the RANK is < remainder,
-the worker performs 1 extra simulation. 
-
-"""
 
 def sim_initialize(rank): #all cores do this
     wavelengths = np.logspace(-2, 0.5, SIZE_OF_WAVEBINS)  # 10AA ~ 30,000AA
@@ -267,9 +276,7 @@ def main():
         print("Delta-time: ", walltime)
         print("   Per-sim: ", walltime/TOTAL_SIMS_TO_RUN)
 
-    MPI.Finalize()
 
-    #outside of MPI
     #todo: here is where we would make the plots, but don't bother since this is just
     #todo: a timing exercise
 
@@ -287,7 +294,7 @@ def main():
 
         plt.savefig("rel_f_esc.png")
 
-    #MPI.Finalize()
+    MPI.Finalize()
 
 if __name__ == '__main__':
     main()
