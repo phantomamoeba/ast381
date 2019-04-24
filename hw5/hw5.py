@@ -39,6 +39,70 @@ def sum_r2(coords):
     return sq_sum
 
 
+def plot_pos(coords,fn=None):
+
+    x = [c[0] for c in coords]
+    y = [c[1] for c in coords]
+    z = [c[2] for c in coords]
+
+    mx = max(x)
+    my = max(y)
+    mz = max(z)
+
+    cmx = 0.5 * (mx + min(x))
+    cmy = 0.5 * (my + min(y))
+    cmz = 0.5 * (mz + min(z))
+
+
+    for i in range(len(x)):
+        if x[i] > cmx:
+            x[i] = x[i] - mx
+        if y[i] > cmy:
+            y[i] = y[i] - my
+        if z[i] > cmz:
+            z[i] = z[i] - mz
+
+
+    plt.close('all')
+    ax = plt.axes(projection="3d")
+    ax.scatter3D(x,y,z,s=0.001)
+
+    if fn is not None:
+        plt.savefig(fn)
+    else:
+        plt.show()
+
+
+
+def plot_2dpos(coords,fn=None):
+
+    x = [c[0] for c in coords]
+    y = [c[1] for c in coords]
+
+    mx = max(x)
+    my = max(y)
+
+
+    cmx = 0.5 * (mx + min(x))
+    cmy = 0.5 * (my + min(y))
+
+
+
+    for i in range(len(x)):
+        if x[i] > cmx:
+            x[i] = x[i] - mx
+        if y[i] > cmy:
+            y[i] = y[i] - my
+
+    plt.close('all')
+    plt.scatter(x,y,s=0.001)
+
+    if fn is not None:
+        plt.savefig(fn)
+    else:
+        plt.show()
+
+
 
 def make_plot(time,pot,kin,t_mul=0.2,title="",savefn=None):
 
@@ -96,6 +160,28 @@ def main():
     make_plot(time,pot,kin,t_mul=0.2,title="10,000 Particles (13.9 kpc softening)",savefn="n4.png")
 
 
+    #snapshots
+    h5 = tables.open_file(BASEDIR+"out_n4/snapshot_000.hdf5")
+    coords = h5.root.PartType1.Coordinates
+    plot_2dpos(coords,"n4_000.png")
+    h5.close()
+
+    h5 = tables.open_file(BASEDIR+"out_n4/snapshot_025.hdf5")
+    coords = h5.root.PartType1.Coordinates
+    plot_2dpos(coords,"n4_025.png")
+    h5.close()
+
+    h5 = tables.open_file(BASEDIR+"out_n4/snapshot_050.hdf5")
+    coords = h5.root.PartType1.Coordinates
+    plot_2dpos(coords,"n4_050.png")
+    h5.close()
+
+    h5 = tables.open_file(BASEDIR+"out_n4/snapshot_091.hdf5")
+    coords = h5.root.PartType1.Coordinates
+    plot_2dpos(coords,"n4_091.png")
+    h5.close()
+
+
     #1e5 (base)
     time5, pot5, kin5 = read_energy("out_n5.base/energy.txt")
 
@@ -105,6 +191,28 @@ def main():
     kin5 = kin5[::10]
 
     make_plot(time5,pot5,kin5,t_mul=0.2,title="100,000 Particles (6.48 kpc softening)",savefn="n5.png")
+
+
+
+    h5 = tables.open_file(BASEDIR+"out_n5.base/snapshot_000.hdf5")
+    coords = h5.root.PartType1.Coordinates
+    plot_2dpos(coords,"n5_000.png")
+    h5.close()
+
+    h5 = tables.open_file(BASEDIR+"out_n5.base/snapshot_025.hdf5")
+    coords = h5.root.PartType1.Coordinates
+    plot_2dpos(coords,"n5_025.png")
+    h5.close()
+
+    h5 = tables.open_file(BASEDIR+"out_n5.base/snapshot_050.hdf5")
+    coords = h5.root.PartType1.Coordinates
+    plot_2dpos(coords,"n5_050.png")
+    h5.close()
+
+    h5 = tables.open_file(BASEDIR+"out_n5.base/snapshot_091.hdf5")
+    coords = h5.root.PartType1.Coordinates
+    plot_2dpos(coords,"n5_091.png")
+    h5.close()
 
 
     #1e5 (short softening length)
